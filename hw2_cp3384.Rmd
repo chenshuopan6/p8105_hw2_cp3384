@@ -1,0 +1,301 @@
+---
+title: "hw2_p8105"
+author: "Chenshuo Pan"
+date: "2023-09-26"
+output: github_document
+---
+
+# Question1:
+
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+```
+
+```{r}
+#read dataset
+pols_month <- read.csv("./data/pols-month.csv")
+snp <- read.csv("./data/snp.csv")
+unemployment <- read.csv("./data/unemployment.csv")
+```
+
+```{r}
+#tidy pols dataset
+pols_month_clean <- 
+  pols_month%>%
+#clean column names
+  janitor::clean_names()%>%
+#separate mon column into year, month and day
+  separate(col = mon , into = c('year','month','day'),sep = '-',convert = TRUE)%>%
+#turn the number of month to the month in english
+  mutate(month = month.name[month])%>%
+#create president variable to present club
+  mutate(president = case_when(
+      prez_dem == 1 ~ "dem",
+      prez_gop %in% c(1,2) ~ "gop"
+    ))%>%
+#remove these three variables
+  select(-prez_dem, -prez_gop,-day)%>%
+#create a variable using year and month values
+  mutate(date = paste(year,month,sep = "-"))%>%
+  arrange(year,match(month,month.name))
+
+
+#The reason why I do not use Date variable is that We don’t need to determine which day it is because we have excluded the day column. If you need date, you can run the following code. Please note that it is running under an English operating system.
+#mutate(date2 = as.Date(paste(date,"01",sep = "-"),format = "%Y-%B-%d"))
+```
+
+
+```{r}
+#do the same thing to snp as pols dataset
+snp_clean <- 
+  snp%>%
+  janitor::clean_names()%>%
+  separate(col = date , into = c('month','day','year'),sep = '/',convert = TRUE)%>%
+  mutate(month = month.name[month])%>%
+  #After observation, there are data from 50-99 and 00-15 in the year column. Based on the actual situation, we distribute the two plus 2000 and 1900 to represent the year.
+  mutate(year = case_when(
+    between(year, 0, 15) ~ year + 2000,
+    between(year, 50, 99) ~ year + 1900,
+    TRUE ~ year))%>%
+  relocate(year,month)%>%
+  select(-day)%>%
+  #Sort by year and month, use match to sort by month instead of alphabetically
+  arrange(year,match(month,month.name))%>%
+  mutate(date = paste(year,month,sep = "-"))
+```
+
+```{r}
+#Clean the unemployment dataset
+unemployment_clean <- 
+  unemployment%>%
+#convert wider table to longer
+  pivot_longer(cols = Jan:Dec,names_to = 'month',values_to = 'percent')%>%
+#convert month abbreviation to full name
+  mutate(month = month.name[match(month,month.abb)])%>%
+  mutate(date = paste(Year,month,sep = "-"))%>%
+  arrange(Year,match(month,month.name))
+```
+
+```{r}
+combine_table <- pols_month_clean%>%select(-year,-month)%>%
+  left_join(snp_clean%>%select(-year,-month),by = "date")%>%
+  left_join(unemployment_clean%>%select(-Year,-month),,by = 'date')
+```
+
+
+**Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset**
+
+(All data sets described below are unprocessed)
+
+`pols-month.csv` dataset contains `r nrow(pols_month)` rows and `r ncol(pols_month)` columns. The year range is between `range(pols_month$mon)`. key variables are: `r names(pols_month)`.I decomposed the `mon` column into `year` `month` and created a `president` variable to replace `prez_dem`, `prez_gop`, and finally added a `date` variable to merge the data frames
+
+
+`snp.csv` dataset contains `r nrow(snp)` rows and `r ncol(snp)` columns. The year range is between 
+`r  snp_clean[1,5]` and `r snp_clean[787,5]`. key variables are: `r names(snp)`. Here  I decomposed the `Date` column into `year` `month` and finally added a `date` variable to merge the data frames
+
+
+`unemployment.csv` dataset contains `r nrow(unemployment)` rows and `r ncol(unemployment)` columns. The year range is between 
+`r  unemployment[1,4]` and `r unemployment[816,4]`. key variables are: `r names(unemployment)`. Here A length-width table conversion was performed, and the month variable name was transferred to the `month` column to become a variable, and the retained number was called `percent`and finally added a `date` variable to merge the data frames
+
+Finally, I combined all these three dataset into `combine_table` , which has `r nrow(combine_table)` rows and `r ncol(combine_table)` columns.key variables are: `r names(combine_table)`.
+
+
+
+
+
+# Question2:
+```{r}
+#load the trash, professor, gwynnda sheet
+trash <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx",
+                    sheet = 'Mr. Trash Wheel',
+                    range = "A2:N549",
+                    col_names = TRUE
+                    )
+
+professor <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx", 
+                        sheet = 'Professor Trash Wheel',
+                        range = "A2:M96",
+                        col_names = TRUE)
+
+gwynnda <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx", 
+                      sheet = 'Gwynnda Trash Wheel',
+                      range = "A2:K108",
+                      col_names = TRUE)
+```
+
+```{r}
+#clean trash table
+trash_clean <- trash%>%
+#Clean column names
+  janitor::clean_names()%>%
+#create homes_powered variables calculating the average family number can supply
+#and add a label wheel_name to show where each data comes from.
+  mutate(homes_powered = weight_tons * 500 / 30,
+         wheel_name = "Mr")
+```
+
+
+```{r}
+#clean professor table
+professor_clean <- professor%>%
+  janitor::clean_names()%>%
+#create homes_powered variables calculating the average family number can supply
+#and add a label wheel_name to show where each data comes from.
+  mutate(homes_powered = weight_tons * 500 / 30,
+         wheel_name = "professor")
+```
+
+```{r}
+#clean gwynndatable
+gwynnda_clean <-gwynnda%>%
+  janitor::clean_names()%>%
+#create homes_powered variables calculating the average family number can supply
+#and add a label wheel_name to show where each data comes from.
+  mutate(homes_powered = weight_tons * 500 / 30,
+         wheel_name = "gwynnda")
+```
+
+```{r}
+#combine professor,trash and gwynnda dataset into one
+combine_wheel <- gwynnda_clean%>%
+  bind_rows(professor_clean)%>%
+  bind_rows(trash_clean%>%mutate(year = as.numeric(year)))%>%
+  arrange(date)
+```
+
+
+**Be sure to note the number of observations in the resulting dataset, and give examples of key variables.** 
+
+The resulting dataset contains `r nrow(combine_wheel)` rows and `r ncol(combine_wheel)` columns.Which means there are `r nrow(combine_wheel)` observations. Some examples of key variables: `dumpster` represents dumpter number.`Year,month,date` shows the time when data been collected. `weight_tons` records the weight of the garbage, `home_powered` calculates the number of households expected to be supplied . `wheel_name`indicates which sheet this record comes from.There are other variables include number of plastic bottles, etc.
+
+**For available data, what was the total weight of trash collected by Professor Trash Wheel?**
+
+The total weight of trash collected by Professor Trash Wheel is `r sum(professor_clean$weight_tons)`tons
+
+
+**What was the total number of cigarette butts collected by Gwynnda in July of 2021?**
+
+The total number of cigarette butts collected by Gwynnda in July of 2021 are `r gwynnda_clean%>%filter(month == 'July'&year == 2021)%>%summarize(sum = sum(cigarette_butts))%>%sum`
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Question3:
+
+```{r}
+#load MCI_baseline csv file
+baseline <- read.csv("./data/MCI_baseline.csv",
+                      skip = 1,
+                     na.strings = c("."))
+  
+```
+
+
+```{r}
+# clean baseline dataset
+baseline_clean <- baseline%>%
+# clean column names
+  janitor::clean_names()%>%
+# encode sex =1 to Male and sex = 0 to Female
+  mutate(sex = case_when(
+      sex == 0 ~ "Female",
+      sex == 1 ~ "Male"
+    ),
+# encode apoe4 =1 to APOE4 carrier and apoe4 =0 to Female
+    apoe4 = case_when(
+      apoe4 == 0 ~ "APOE4 non-carrier",
+      apoe4 == 1 ~ "APOE4 carrier"
+    ))
+# remove any participants who do not meet the stated inclusion criteria
+baseline_filterna <-baseline_clean%>%
+  filter(!is.na(age_at_onset))
+```
+
+
+**Discuss important steps in the import process and relevant features of the dataset.**
+
+The import steps in my view include how to convert `.` into `NA` and appropriately encode sex and apoe4 columns. Here I use `case_when` to do the convention. 
+
+This dataset has `r nrow(baseline)`  rows , and `r ncol(baseline)`  columns. After removing participants who do not meet the stated inclusion criteria. The dataset keep `r nrow(baseline_clean)` rows. The important variables in this dataset including : `r names(baseline_clean) `
+
+**How many participants were recruited, and of these how many develop MCI?**
+
+Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_filterna)` develop MCI.
+
+**What is the average baseline age?**
+
+The average baseline age is `r mean(baseline_clean$current_age)``
+
+**What proportion of women in the study are APOE4 carriers?**
+
+The proportion of women in the study are APOE4 carriers is `r nrow(baseline_filterna%>%filter(sex=='Female'& apoe4 == 'APOE4 carrier'))/nrow(baseline_filterna%>%filter(sex=='Female'))`
+
+```{r}
+#load mci_amyloid.csv file
+amyloid <- read.csv("./data/mci_amyloid.csv",
+                      skip = 1)
+```
+
+```{r}
+#clean amyloid dataset
+amyloid_clean <- amyloid%>%
+#clean and rename columns names reasonably
+  janitor::clean_names()%>%
+  rename(id = study_id,
+         Baseline = baseline,
+         After_two_year = time_2,
+         After_four_year= time_4,
+         After_six_year = time_6,
+         After_eight_year = time_8)
+```
+
+
+```{r}
+# find the id appear in only the amyloid dataset
+only_amyloid<-amyloid_clean%>%
+  anti_join(baseline_clean,by = "id")
+
+only_amyloid
+```
+
+```{r}
+# find the id appear in only the baseline dataset
+only_baseline <- baseline_clean%>%
+  anti_join(amyloid_clean,by = "id")
+
+
+only_baseline
+```
+
+**Check whether some participants appear in only the baseline or amyloid datasets, and comment on your findings.**
+
+The data that exists in amyloid but not in baseline is the following ID：`r only_amyloid$id`
+
+The data that exists in baseline but not in amyloid is the following ID：`r only_baseline$id`
+
+There may be data loss, as all data from 484-495 is missing
+```{r}
+#using inner_join to find the id appear in both dataset
+combine_mci <- inner_join(baseline_clean,amyloid_clean,by = "id")
+```
+
+```{r}
+#export the dataset
+write.csv(combine_mci,file = "./data/combine mci.csv", row.names = TRUE)
+```
+
+**Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.**
+
+After combination, there are totally `r nrow(combine_mci)` observations, The Key variables of this dataset are : `r names(combine_mci)`
+
