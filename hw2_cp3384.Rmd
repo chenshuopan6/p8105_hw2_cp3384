@@ -110,18 +110,18 @@ Finally, I combined all these three dataset into `combine_table` , which has `r 
 #load the trash, professor, gwynnda sheet
 trash <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx",
                     sheet = 'Mr. Trash Wheel',
-                    range = "A2:N549",
+                    range = "A2:N586",
                     col_names = TRUE
                     )
 
 professor <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx", 
                         sheet = 'Professor Trash Wheel',
-                        range = "A2:M96",
+                        range = "A2:M108",
                         col_names = TRUE)
 
 gwynnda <- read_excel("./data/202309 Trash Wheel Collection Data.xlsx", 
                       sheet = 'Gwynnda Trash Wheel',
-                      range = "A2:K108",
+                      range = "A2:L157",
                       col_names = TRUE)
 ```
 
@@ -231,7 +231,7 @@ This dataset has `r nrow(baseline)`  rows , and `r ncol(baseline)`  columns. Aft
 
 **How many participants were recruited, and of these how many develop MCI?**
 
-Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_filterna)` develop MCI.
+Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_clean%>%filter(apoe4 == 'APOE4 carrier'))` develop MCI.
 
 **What is the average baseline age?**
 
@@ -239,7 +239,7 @@ The average baseline age is `r mean(baseline_clean$current_age)``
 
 **What proportion of women in the study are APOE4 carriers?**
 
-The proportion of women in the study are APOE4 carriers is `r nrow(baseline_filterna%>%filter(sex=='Female'& apoe4 == 'APOE4 carrier'))/nrow(baseline_filterna%>%filter(sex=='Female'))`
+The proportion of women in the study are APOE4 carriers is `r nrow(baseline_clean%>%filter(sex=='Female'& apoe4 == 'APOE4 carrier'))/nrow(baseline_clean%>%filter(sex=='Female'))`
 
 ```{r}
 #load mci_amyloid.csv file
@@ -259,6 +259,12 @@ amyloid_clean <- amyloid%>%
          After_six_year = time_6,
          After_eight_year = time_8)
 ```
+
+**comment on the steps on the import process and the features of the dataset.**
+When reading the Amyloid data set, I skipped the first row in the excel table and changed some unintelligible column names in the table to reasonable column names to help us better merge the data sets. This data set has a total of `r nrow(amyloid_clean)` rows and `r ncol(amyloid_clean)`columns.key variables: `r names(amyloid_clean)`
+
+
+
 
 
 ```{r}
@@ -297,5 +303,5 @@ write.csv(combine_mci,file = "./data/combine mci.csv", row.names = TRUE)
 
 **Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.**
 
-After combination, there are totally `r nrow(combine_mci)` observations, The Key variables of this dataset are : `r names(combine_mci)`
+After combination, there are totally `r nrow(combine_mci)` observations, `r ncol(amyloid_clean)`columns .The Key variables of this dataset are : `r names(combine_mci)`
 
