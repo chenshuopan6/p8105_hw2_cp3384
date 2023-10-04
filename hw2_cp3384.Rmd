@@ -79,6 +79,7 @@ unemployment_clean <-
 ```
 
 ```{r}
+#join all 3 tables together
 combine_table <- pols_month_clean%>%select(-year,-month)%>%
   left_join(snp_clean%>%select(-year,-month),by = "date")%>%
   left_join(unemployment_clean%>%select(-Year,-month),,by = 'date')
@@ -167,6 +168,12 @@ combine_wheel <- gwynnda_clean%>%
 
 
 **Be sure to note the number of observations in the resulting dataset, and give examples of key variables.** 
+The Mr.Trash wheel sheet after cleaning contains `r nrow(trash_clean)` rows and `r ncol(trash_clean)` columns
+
+The Professor wheel sheet after cleaning contains `r nrow(professor_clean)` rows and `r ncol(professor_clean)` columns
+
+The Gwynnda wheel sheet after cleaning contains `r nrow(gwynnda_clean)` rows and `r ncol(gwynnda_clean)` columns
+
 
 The resulting dataset contains `r nrow(combine_wheel)` rows and `r ncol(combine_wheel)` columns.Which means there are `r nrow(combine_wheel)` observations. Some examples of key variables: `dumpster` represents dumpter number.`Year,month,date` shows the time when data been collected. `weight_tons` records the weight of the garbage, `home_powered` calculates the number of households expected to be supplied . `wheel_name`indicates which sheet this record comes from.There are other variables include number of plastic bottles, etc.
 
@@ -178,11 +185,6 @@ The total weight of trash collected by Professor Trash Wheel is `r sum(professor
 **What was the total number of cigarette butts collected by Gwynnda in July of 2021?**
 
 The total number of cigarette butts collected by Gwynnda in July of 2021 are `r gwynnda_clean%>%filter(month == 'July'&year == 2021)%>%summarize(sum = sum(cigarette_butts))%>%sum`
-
-
-
-
-
 
 
 
@@ -218,8 +220,8 @@ baseline_clean <- baseline%>%
       apoe4 == 1 ~ "APOE4 carrier"
     ))
 # remove any participants who do not meet the stated inclusion criteria
-baseline_filterna <-baseline_clean%>%
-  filter(current_age < age_at_onset | !is.na(age_at_onset))
+baseline_filter <-baseline_clean%>%
+  filter(current_age < age_at_onset | is.na(age_at_onset))
 ```
 
 
@@ -227,19 +229,19 @@ baseline_filterna <-baseline_clean%>%
 
 The import steps in my view include how to convert `.` into `NA` and appropriately encode sex and apoe4 columns. Here I use `case_when` to do the convention. 
 
-This dataset has `r nrow(baseline)`  rows , and `r ncol(baseline)`  columns. After removing participants who do not meet the stated inclusion criteria. The dataset keep `r nrow(baseline_clean)` rows. The important variables in this dataset including : `r names(baseline_clean) `
+This dataset has `r nrow(baseline)`  rows , and `r ncol(baseline)`  columns. After removing participants who do not meet the stated inclusion criteria. The dataset keep `r nrow(baseline_filter)` rows. The important variables in this dataset including : `r names(baseline_filter) `
 
 **How many participants were recruited, and of these how many develop MCI?**
 
-Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_clean%>%filter(apoe4 == 'APOE4 carrier'))` develop MCI.
+Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_filter)` develop MCI.
 
 **What is the average baseline age?**
 
-The average baseline age is `r mean(baseline_clean$current_age)``
+The average baseline age is `r mean(pull(baseline_filter,current_age))``
 
 **What proportion of women in the study are APOE4 carriers?**
 
-The proportion of women in the study are APOE4 carriers is `r nrow(baseline_clean%>%filter(sex=='Female'& apoe4 == 'APOE4 carrier'))/nrow(baseline_clean%>%filter(sex=='Female'))`
+The proportion of women in the study are APOE4 carriers is `r nrow(baseline_filter%>%filter(sex=='Female'& apoe4 == 'APOE4 carrier'))/nrow(baseline_filter%>%filter(sex=='Female'))`
 
 ```{r}
 #load mci_amyloid.csv file
@@ -258,42 +260,58 @@ amyloid_clean <- amyloid%>%
          After_four_year= time_4,
          After_six_year = time_6,
          After_eight_year = time_8)
+
+
+#we also create a long table which convert After_X_year into one column and take values from them
+
+amyloid_clean_long <- amyloid_clean%>%
+  pivot_longer(Baseline:After_eight_year,names_to = "time", values_to = "beta_ratio")
 ```
 
 **comment on the steps on the import process and the features of the dataset.**
+
 When reading the Amyloid data set, I skipped the first row in the excel table and changed some unintelligible column names in the table to reasonable column names to help us better merge the data sets. This data set has a total of `r nrow(amyloid_clean)` rows and `r ncol(amyloid_clean)`columns.key variables: `r names(amyloid_clean)`
 
+I also do another version, which convert this wide table into long table by using each row to represent data at a specific time.This is achieved through `pivot longer()` . After transforming, the dataset `amyloid_clean_long` has `r nrow(amyloid_clean_long)` rows and `r ncol(amyloid_clean_long)`columns.key variables: `r names(amyloid_clean_long)`
 
 
 
+**Check whether some participants appear in only the baseline or amyloid datasets, and comment on your findings.**
 
 ```{r}
 # find the id appear in only the amyloid dataset
 only_amyloid<-amyloid_clean%>%
-  anti_join(baseline_clean,by = "id")
+  anti_join(baseline_filter,by = "id")
 
 only_amyloid
 ```
 
 ```{r}
 # find the id appear in only the baseline dataset
-only_baseline <- baseline_clean%>%
+only_baseline <- baseline_filter%>%
   anti_join(amyloid_clean,by = "id")
 
 
 only_baseline
 ```
 
-**Check whether some participants appear in only the baseline or amyloid datasets, and comment on your findings.**
 
-The data that exists in amyloid but not in baseline is the following ID：`r only_amyloid$id`
 
-The data that exists in baseline but not in amyloid is the following ID：`r only_baseline$id`
+The data that exists in amyloid but not in baseline is the following ID：`r pull(only_amyloid,id)`
 
-There may be data loss, as all data from 484-495 is missing
+The data that exists in baseline but not in amyloid is the following ID：`r pull(only_baseline,id)`
+
+There may be data loss, as all data from 484-495 are missing
+
+
+**Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.**
+
 ```{r}
 #using inner_join to find the id appear in both dataset
-combine_mci <- inner_join(baseline_clean,amyloid_clean,by = "id")
+combine_mci <- inner_join(baseline_filter,amyloid_clean_long,by = "id")
+
+#combine wide table to show how many observations appear in both dataset
+combine_observations <- inner_join(baseline_filter,amyloid_clean,by = "id")
 ```
 
 ```{r}
@@ -301,7 +319,9 @@ combine_mci <- inner_join(baseline_clean,amyloid_clean,by = "id")
 write.csv(combine_mci,file = "./data/combine mci.csv", row.names = TRUE)
 ```
 
-**Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.**
 
-After combination, there are totally `r nrow(combine_mci)` observations, `r ncol(amyloid_clean)`columns .The Key variables of this dataset are : `r names(combine_mci)`
+
+After combination, there are totally `r nrow(combine_observations)` observations,and the dataset we export has `r nrow(combine_mci)`rows, `r ncol(combine_mci)`columns .The Key variables of this dataset are : `r names(combine_mci)`.
+
+where beta_ratio means the ratio value at `time`.
 
