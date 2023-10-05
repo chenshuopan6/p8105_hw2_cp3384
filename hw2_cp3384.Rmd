@@ -233,7 +233,7 @@ This dataset has `r nrow(baseline)`  rows , and `r ncol(baseline)`  columns. Aft
 
 **How many participants were recruited, and of these how many develop MCI?**
 
-Totally `r nrow(baseline)` participants were recruited, of these `r nrow(baseline_filter)` develop MCI.
+Totally `r nrow(baseline)` participants were recruited, among these `r nrow(baseline_filter)` are complete data, and `r nrow(baseline_filter%>%filter(!is.na(age_at_onset)))` develop MCI
 
 **What is the average baseline age?**
 
